@@ -10,7 +10,41 @@
  */
 
 const STORAGE_KEY = "lang";
-const DEFAULT_LANG = "vi";
+const FALLBACK_LANG = "en";
+const SUPPORTED_LANGS = new Set(["en", "vi"]);
+/** Non-English locale bundles we ship (English is the default fallback). */
+const LOCALIZED_LANGS = new Set(["vi"]);
+
+/**
+ * Pick language from device settings. Vietnamese when the device locale is vi*;
+ * otherwise English.
+ */
+export function detectDeviceLanguage() {
+  try {
+    if (typeof navigator === "undefined") return FALLBACK_LANG;
+    const candidates = navigator.languages?.length
+      ? navigator.languages
+      : [navigator.language];
+    for (const raw of candidates) {
+      if (!raw) continue;
+      const code = String(raw).split("-")[0].toLowerCase();
+      if (LOCALIZED_LANGS.has(code)) return code;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return FALLBACK_LANG;
+}
+
+function resolveInitialLanguage() {
+  try {
+    const saved = typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+    if (saved && SUPPORTED_LANGS.has(saved)) return saved;
+  } catch (e) {
+    // ignore
+  }
+  return detectDeviceLanguage();
+}
 
 /**
  * LOCALES cache structure:
@@ -21,14 +55,7 @@ const DEFAULT_LANG = "vi";
  */
 const LOCALES = {};
 
-let currentLang = (() => {
-  try {
-    const saved = typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
-    return saved || DEFAULT_LANG;
-  } catch (e) {
-    return DEFAULT_LANG;
-  }
-})();
+let currentLang = resolveInitialLanguage();
 
 /**
  * Load a locale JSON file (./locales/{lang}.json) relative to this module.
@@ -157,14 +184,18 @@ export function setLanguage(lang) {
 }
 
 /**
- * Initialize i18n. Default language is Vietnamese.
+ * Initialize i18n. Uses saved preference, else device locale (vi → Vietnamese, else English).
  * Ensures localStorage has a value and starts loading the selected locale.
  */
 export function initI18n() {
   try {
     const saved = typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
-    if (saved) currentLang = saved;
-    else localStorage.setItem(STORAGE_KEY, currentLang);
+    if (saved && SUPPORTED_LANGS.has(saved)) {
+      currentLang = saved;
+    } else {
+      currentLang = detectDeviceLanguage();
+      localStorage.setItem(STORAGE_KEY, currentLang);
+    }
   } catch (e) {
     // ignore
   }

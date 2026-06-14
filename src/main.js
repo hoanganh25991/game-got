@@ -272,7 +272,7 @@ try {
 
 /* Initialize splash first (shows full-screen loader), then i18n */
 initSplash();
-// Initialize i18n (default Vietnamese)
+// Initialize i18n (device locale, fallback English)
 initI18n();
 // Bottom Middle = Desktop Controls
 setupDesktopControls();
